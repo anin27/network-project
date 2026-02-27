@@ -23,19 +23,34 @@
         groups: docker
         append: yes
 
-    - name: Copy app folder to EC2
-      copy:
-        src: ../app/
-        dest: /home/ec2-user/app/
+    - name: Create project directory
+      file:
+        path: /home/ec2-user/network-project
+        state: directory
         owner: ec2-user
         group: ec2-user
         mode: '0755'
 
-    - name: Build Docker image
-      command: docker build -t network-app .
+    - name: Copy app folder to EC2
+      copy:
+        src: ../app/
+        dest: /home/ec2-user/network-project/app/
+        owner: ec2-user
+        group: ec2-user
+        mode: '0755'
+
+    - name: Stop old container if exists
+      command: docker stop network-container
+      ignore_errors: yes
+
+    - name: Remove old container if exists
+      command: docker rm network-container
+      ignore_errors: yes
+
+    - name: Build Docker image (no cache)
+      command: docker build --no-cache -t network-app .
       args:
-        chdir: /home/ec2-user/app/
+        chdir: /home/ec2-user/network-project/app/
 
     - name: Run Docker container
       command: docker run -d -p 80:80 --name network-container network-app
-      ignore_errors: yes
