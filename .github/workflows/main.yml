@@ -1,0 +1,92 @@
+name: DevOps CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+
+  build-and-validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      # ---------------------------
+      # Terraform Setup & Validate
+      # ---------------------------
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.6
+
+      - name: Terraform Init
+        working-directory: ./terraform
+        run: terraform init -backend=false
+
+      - name: Terraform Validate
+        working-directory: ./terraform
+        run: terraform validate
+
+      - name: Terraform Format Check
+        working-directory: ./terraform
+        run: terraform fmt -check
+
+      # ---------------------------
+      # Install Ansible
+      # ---------------------------
+
+      - name: Install Ansible
+        run: |
+          sudo apt update
+          sudo apt install -y ansible
+
+      - name: Ansible Syntax Check
+        run: |
+          ansible-playbook ansible/nginx-playbook.yml --syntax-check
+
+      # ---------------------------
+      # Dockerfile Check
+      # ---------------------------
+
+      - name: Validate Dockerfile
+        run: |
+          if [ -f app/Dockerfile ]; then
+            echo "Dockerfile exists"
+          else
+            echo "Dockerfile missing"
+            exit 1
+          fi
+
+
+  deploy:
+    needs: build-and-validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Setup SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+      - name: Deploy on EC2
+        run: |
+          ssh -o StrictHostKeyChecking=no ec2-user@3.252.234.128 << 'EOF'
+            cd /home/ec2-user/network-project
+            git pull origin main
+
+            cd app
+            docker build -t network-app .
+
+            docker stop network-container || true
+            docker rm network-container || true
+
+            docker run -d -p 80:80 --name network-container network-app
+          EOF
