@@ -1,0 +1,7 @@
+ansible-env/
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.pem
+__pycache__/
+terraform/.terraform/
