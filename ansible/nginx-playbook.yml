@@ -1,17 +1,17 @@
 ---
-- name: Deploy Docker Nginx App
+- name: Configure EC2 and Deploy Docker App
   hosts: web
   become: yes
-  gather_facts: no
+  gather_facts: yes
 
   tasks:
 
-    - name: Install Docker
+    - name: Install Docker (Amazon Linux 2)
       yum:
         name: docker
         state: present
 
-    - name: Start Docker
+    - name: Start and enable Docker
       service:
         name: docker
         state: started
@@ -25,13 +25,14 @@
 
     - name: Create project directory
       file:
-        path: /home/ec2-user/network-project
+        path: /home/ec2-user/network-project/app
         state: directory
         owner: ec2-user
         group: ec2-user
         mode: '0755'
+        recurse: yes
 
-    - name: Copy app folder to EC2
+    - name: Copy app files to EC2
       copy:
         src: ../app/
         dest: /home/ec2-user/network-project/app/
@@ -39,18 +40,22 @@
         group: ec2-user
         mode: '0755'
 
-    - name: Stop old container if exists
+    - name: Stop existing container if running
       command: docker stop network-container
       ignore_errors: yes
 
-    - name: Remove old container if exists
+    - name: Remove existing container if exists
       command: docker rm network-container
       ignore_errors: yes
 
-    - name: Build Docker image (no cache)
+    - name: Remove old Docker image
+      command: docker rmi network-app
+      ignore_errors: yes
+
+    - name: Build Docker image (force rebuild)
       command: docker build --no-cache -t network-app .
       args:
-        chdir: /home/ec2-user/network-project/app/
+        chdir: /home/ec2-user/network-project/app
 
     - name: Run Docker container
       command: docker run -d -p 80:80 --name network-container network-app
