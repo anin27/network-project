@@ -14,10 +14,6 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      # ---------------------------
-      # Terraform Setup & Validate
-      # ---------------------------
-
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -35,10 +31,6 @@ jobs:
         working-directory: ./terraform
         run: terraform fmt -check
 
-      # ---------------------------
-      # Install Ansible
-      # ---------------------------
-
       - name: Install Ansible
         run: |
           sudo apt update
@@ -47,10 +39,6 @@ jobs:
       - name: Ansible Syntax Check
         run: |
           ansible-playbook ansible/nginx-playbook.yml --syntax-check
-
-      # ---------------------------
-      # Dockerfile Check
-      # ---------------------------
 
       - name: Validate Dockerfile
         run: |
@@ -80,13 +68,15 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no ec2-user@3.252.234.128 << 'EOF'
             cd /home/ec2-user/network-project
+
             git pull origin main
 
             cd app
-            docker build -t network-app .
 
             docker stop network-container || true
             docker rm network-container || true
+
+            docker build --no-cache -t network-app .
 
             docker run -d -p 80:80 --name network-container network-app
           EOF
