@@ -50,33 +50,26 @@ jobs:
           fi
 
 
-  deploy:
+deploy:
     needs: build-and-validate
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
-
       - name: Setup SSH Key
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.EC2_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-
-      - name: Deploy on EC2
+      - name: Install Ansible
         run: |
-          ssh -o StrictHostKeyChecking=no ec2-user@3.252.234.128 << 'EOF'
-            cd /home/ec2-user/network-project
-
-            git pull origin main
-
-            cd app
-
-            docker stop network-container || true
-            docker rm network-container || true
-
-            docker build --no-cache -t network-app .
-
-            docker run -d -p 80:80 --name network-container network-app
-          EOF
+          sudo apt update
+          sudo apt install -y ansible
+      - name: Update Inventory
+        run: |
+          echo "[web]" > ansible/inventory
+          echo "3.252.234.128 ansible_user=ec2-user ansible_ssh_private_key_file=~/.ssh/id_rsa" >> ansible/inventory
+      - name: Deploy via Ansible
+        run: |
+          ansible-playbook -i ansible/inventory ansible/nginx-playbook.yml \
+            --ssh-extra-args="-o StrictHostKeyChecking=no"
