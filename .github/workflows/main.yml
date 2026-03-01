@@ -66,28 +66,28 @@ jobs:
       - name: Deploy via SSH
         run: |
           ssh -o StrictHostKeyChecking=no ec2-user@${{ secrets.EC2_HOST }} << 'EOF'
-          # Install git if not present
-          sudo yum install -y git
+            # Install git if not present
+            sudo yum install -y git
 
-          # Install Docker if not already installed
-          sudo yum install -y docker
-          sudo systemctl start docker
-          sudo systemctl enable docker
-          sudo usermod -aG docker ec2-user   # (won't affect this session, but good for future)
+            # Install Docker if not already installed
+            sudo yum install -y docker
+            sudo systemctl start docker
+            sudo systemctl enable docker
+            sudo usermod -aG docker ec2-user
 
-          # Create project directory and clone/update code
-          mkdir -p /home/ec2-user/network-project
-          cd /home/ec2-user/network-project
-          if [ ! -d .git ]; then
-            git clone https://github.com/anin27/network-project.git .
-          else
-            git pull origin main
-          fi
+            # Create project directory and clone/update code
+            mkdir -p /home/ec2-user/network-project
+            cd /home/ec2-user/network-project
+            if [ ! -d .git ]; then
+              git clone https://github.com/anin27/network-project.git .
+            else
+              git pull origin main
+            fi
 
-          # Build and run the Docker container (use sudo for Docker commands)
-          cd app
-          sudo docker stop network-container || true
-          sudo docker rm network-container || true
-          sudo docker build --no-cache -t network-app .
-          sudo docker run -d -p 80:80 --name network-container network-app
-        EOF
+            # Build and run the Docker container
+            cd app
+            sudo docker stop network-container || true
+            sudo docker rm network-container || true
+            sudo docker build --no-cache -t network-app .
+            sudo docker run -d -p 80:80 --name network-container network-app
+          EOF
