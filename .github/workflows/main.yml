@@ -50,8 +50,8 @@ jobs:
           fi
 
   deploy:
-  needs: build-and-validate
-  runs-on: ubuntu-latest
+    needs: build-and-validate
+    runs-on: ubuntu-latest
 
   steps:
     - name: Checkout Repository
