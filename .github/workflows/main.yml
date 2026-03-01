@@ -63,15 +63,27 @@ jobs:
           echo "${{ secrets.EC2_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
-      - name: Install Ansible
+      - name: Deploy via SSH
         run: |
-          sudo apt update
-          sudo apt install -y ansible
+          ssh -o StrictHostKeyChecking=no ec2-user@${{ secrets.EC2_HOST }} << 'EOF'
+            sudo yum install -y git
 
-      - name: Run Ansible Playbook
-        env:
-          ANSIBLE_HOST_KEY_CHECKING: "False"
-        run: |
-          ansible-playbook -i ansible/inventory \
-            --private-key ~/.ssh/id_rsa \
-            ansible/nginx-playbook.yml
+            sudo yum install -y docker
+            sudo systemctl start docker
+            sudo systemctl enable docker
+            sudo usermod -aG docker ec2-user
+
+            mkdir -p /home/ec2-user/network-project
+            cd /home/ec2-user/network-project
+            if [ ! -d .git ]; then
+              git clone https://github.com/anin27/network-project.git .
+            else
+              git pull origin main
+            fi
+
+            cd app
+            sudo docker stop network-container || true
+            sudo docker rm network-container || true
+            sudo docker build --no-cache -t network-app .
+            sudo docker run -d -p 80:80 --name network-container network-app
+          EOF
