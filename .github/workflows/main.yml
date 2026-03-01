@@ -69,6 +69,9 @@ jobs:
         run: |
           echo "[web]" > ansible/inventory
           echo "3.252.234.128 ansible_user=ec2-user ansible_ssh_private_key_file=~/.ssh/id_rsa" >> ansible/inventory
+      - name: Pre-install Python on EC2
+        run: |
+          ssh -o StrictHostKeyChecking=no ec2-user@3.252.234.128 "sudo yum install -y python3"
       - name: Deploy via Ansible
         run: |
           ansible-playbook -i ansible/inventory ansible/nginx-playbook.yml \
