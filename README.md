@@ -36,7 +36,7 @@ ansible-playbook -i inventory nginx-playbook.yml \
 Push to main branch triggers GitHub Actions which validates and deploys automatically.
 
 ## Live Deployment
-http://3.252.234.128
+http://54.78.229.16
 
 ## Known Limitations
 - EC2 IP hardcoded in ansible/inventory — update if instance is reprovisioned
