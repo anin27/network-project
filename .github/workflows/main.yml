@@ -49,35 +49,42 @@ jobs:
             exit 1
           fi
 
+ deploy:
+  needs: build-and-validate
+  runs-on: ubuntu-latest
 
-  deploy:
-    needs: build-and-validate
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
+  steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v3
 
-      - name: Setup SSH Key
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
+    - name: Setup SSH Key
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.EC2_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
 
-      - name: Install Ansible
-        run: |
-          sudo apt update
-          sudo apt install -y ansible
+    - name: Deploy via SSH
+      run: |
+        ssh -o StrictHostKeyChecking=no ec2-user@${{ secrets.EC2_HOST }} << 'EOF'
+          # Install Docker if not already installed
+          sudo yum install -y docker
+          sudo systemctl start docker
+          sudo systemctl enable docker
+          sudo usermod -aG docker ec2-user
 
-      - name: Update Inventory
-        run: |
-          echo "[web]" > ansible/inventory
-          echo "3.252.234.128 ansible_user=ec2-user ansible_ssh_private_key_file=~/.ssh/id_rsa" >> ansible/inventory
+          # Create project directory and clone/update code
+          mkdir -p /home/ec2-user/network-project
+          cd /home/ec2-user/network-project
+          if [ ! -d .git ]; then
+            git clone https://github.com/anin27/network-project.git .
+          else
+            git pull origin main
+          fi
 
-      - name: Pre-install Python on EC2
-        run: |
-          ssh -o StrictHostKeyChecking=no ec2-user@3.252.234.128 "sudo yum install -y python3"
-
-      - name: Deploy via Ansible
-        run: |
-          ansible-playbook -i ansible/inventory ansible/nginx-playbook.yml \
-            --ssh-extra-args="-o StrictHostKeyChecking=no"
+          # Build and run the Docker container
+          cd app
+          docker stop network-container || true
+          docker rm network-container || true
+          docker build --no-cache -t network-app .
+          docker run -d -p 80:80 --name network-container network-app
+        EOF
