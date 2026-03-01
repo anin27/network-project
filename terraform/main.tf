@@ -46,7 +46,7 @@ resource "aws_security_group" "web_sg" {
 resource "aws_instance" "web" {
   ami                    = data.aws_ami.amazon_linux.id
   instance_type          = "t3.micro"
-  key_name               = "var.key_name"
+  key_name               = var.key_name
   vpc_security_group_ids = [aws_security_group.web_sg.id]
 
   tags = {
